@@ -1,8 +1,8 @@
 #Predict prices of a product using regression and model
 
-#The following example shows that we can build the slope using the statstics on the prices 
-#and get the coefficients of the price change. After finding the coefficients we can predict 
-#the inputed items(with weight) prices using the model.   
+The following example shows that we can build the slope using the statstics on the prices 
+and get the coefficients of the price change. After finding the coefficients we can predict 
+the inputed items(with weight) prices using the model.   
 
 ---
 ## Example
