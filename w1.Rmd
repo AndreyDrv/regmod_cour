@@ -1,0 +1,326 @@
+```{r}
+############## General Least squares method
+
+# Plot Galtons Data destribution
+library(UsingR)
+data(galton)
+library(dplyr); library(ggplot2)
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child", "parent", "freq")
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+g <- g  + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="grey50", aes(size = freq+20, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="white")
+g
+
+ 
+# check outcome/predictor relationship using formula and linear model function
+# outcome
+y <- galton$child
+# regressor
+x <- galton$parent
+# slope
+beta1 <- cor(y, x) * sd(y) / sd(x)
+# intercept
+beta0 <- mean(y) - beta1 * mean(x)
+# results are the same as using the lm command
+results <- rbind("manual" = c(beta0, beta1), "lm(y ~ x)" = coef(lm(y ~ x)))
+# set column names
+colnames(results) <- c("intercept", "slope")
+# print results
+results
+
+
+# Reversing the outcome/predictor relationship
+beta1 <- cor(y, x) *  sd(x) / sd(y)
+beta0 <- mean(x) - beta1 * mean(y)
+rbind(c(beta0, beta1), coef(lm(x ~ y)))
+#result: can see our formula is ok
+
+
+# Regression through the origin yields an equivalent slope if you center the data first
+# centering y
+yc <- y - mean(y)
+# centering x
+xc <- x - mean(x)
+# slope
+beta1 <- sum(yc * xc) / sum(xc ^ 2)
+# results are the same as using the lm command
+results <- rbind("centered data (manual)" = beta1, "lm(y ~ x)" = coef(lm(y ~ x))[2],
+                 "lm(yc ~ xc - 1)" = coef(lm(yc ~ xc - 1))[1])
+# set column names
+colnames(results) <- c("slope")
+# print results
+results
+# result: same numbers of the slope
+
+
+# Normalizing variables results in the slope being the correlation
+# normalize y
+yn <- (y - mean(y))/sd(y)
+# normalize x
+xn <- (x - mean(x))/sd(x)
+# compare correlations
+results <- rbind("cor(y, x)" = cor(y, x), "cor(yn, xn)" = cor(yn, xn),
+                 "slope" = coef(lm(yn ~ xn))[2])
+# print results
+results
+# result: 
+# correlation of yx          AND 
+# y normalized, x normalized AND
+# coeff of linear of model y normalized, x normalized
+# are same
+
+
+# Draw regression line on the plot
+# constructs table for different combination of parent-child height
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child (in)", "parent (in)", "freq")
+# convert to numeric values
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+g <- g + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="grey50", aes(size = freq+10, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="white")
+#draws the line with the confidence interval around
+g <- g + geom_smooth(method="lm", formula=y~x)    
+g
+
+
+
+
+
+##################################################################
+#############################Practice#############################
+##################################################################
+
+############################# plotting and analyzing the data:
+galton <- data(Galton)
+# plot the distribution of dependency of child hight with parents((mom+dad)/2)
+plot(child ~ parent, galton)
+# plot the distribution with showing the frequency with bold dots
+plot(jitter(child,4) ~ parent,galton)
+# calculate line
+regrline <- lm(child ~ parent, galton)
+abline(regrline, lwd=3, col='red')
+
+
+summary(regline)
+#Coefficients:
+#  Estimate Std. Error t value Pr(>|t|)    
+#(Intercept) 23.94153    2.81088   8.517   <2e-16 ***
+#  parent       0.64629    0.04114  15.711   <2e-16 ***
+
+#.64629 - The slope of the line is the estimate of the coefficient, 
+#or muliplier, of "parent", the independent variable of our data 
+#(in this case, the parents' heights)
+
+#.04114 - the standard error of the slope
+
+#A coefficient will be within 2 standard errors of its estimate about 95% of the time. 
+#This means the slope of our regression is significantly different than either 
+#0 or 1 since (.64629) +/- (2*.04114) is near neither 0 nor 1.
+#############################
+
+
+
+
+
+############################# residuals:
+#residuals - the distances between the actual children's heights and the estimates 
+#given by the regression line. Since all lines are characterized by two parameters, 
+#a slope and an intercept, we'll use the least squares criteria to provide two 
+#equations in two unknowns so we can solve for these parameters, the slope and intercept.
+
+#The first equation says that the "errors" in our estimates, the residuals, 
+#have mean zero. In other words, the residuals are "balanced" among the data points; 
+#they're just as likely to be positive as negative. The second equation says that our 
+#residuals must be uncorrelated with our predictors, the parents<U+FFFD><U+FFFD> height. 
+#This makes sense - if the residuals and predictors were correlated then you could 
+#make a better prediction and reduce the distances (residuals)  between the actual 
+#outcomes and the predictions.
+
+######Ex1: Galton data
+library(UsingR)
+data(galton)
+fit <- lm(child ~ parent, galton) #the regression line
+
+#check the mean of fit$residuals to see if it's close to 0
+mean(fit$residuals) 
+#the correlation between the residuals and the predictors. it's close to 0.
+cov(fit$residuals, galton$parent) 
+
+# "mch"" the mean of the galton childrens' heights
+# "mph"" the mean of the galton parents' heights
+# "ic" and "slope" represent the intercept and slope of the regression line respectively
+#mch = ic + slope*mph
+
+ols.ic <- fit$coef[1] #the intercept
+ols.slope <- fit$coef[2] #slope
+
+
+# Now we'll show that the variance in the children's heights is the sum of the variance 
+#in the OLS estimates and the variance in the OLS residuals:
+varChild <- var(galton$child) #the variance in the children's heights
+varRes <- var(fit$residuals)  #the variance in these residuals
+#calculates the estimates (y-coordinates) of values along the regression line
+varEst <- ols.ic + ols.slope*galton$parent
+
+#compare varChild and the sum of varRes and varEst
+all.equal(varChild,  varEst + varRes) #TRUE
+# Since variances are sums of squares (and hence always positive), this equation which 
+#we've just demonstrated, var(data)=var(estimate)+var(residuals), shows that the 
+#variance of the estimate is ALWAYS less than the variance of the data.
+# Since var(data)=var(estimate)+var(residuals) and variances are always positive, 
+#the variance of residuals is less than the variance of data
+
+
+######Ex2: earthquakes in California
+# The two properties of the residuals we've emphasized here can be applied to datasets 
+#which have multiple predictors.
+#Accelerations are estimated based on two predictors, distance and magnitude.
+efit <- lm(accel ~ mag+dist, attenu) # the regression line
+
+#Verify the mean of the residuals is 0
+mean(efit$residuals)                 
+#verify the residuals are uncorrelated with the magnitude predictor, attenu$mag
+cov(efit$residuals, attenu$mag) 
+#############################
+
+
+############################# Least Squares Estimation
+#regression line is the line through the data which has the minimum (least) 
+#squared "error", the vertical distance between the 928 actual children's heights 
+#and the heights predicted by the line. Squaring the distances ensures that data 
+#points above and below the line are treated the same. This method of choosing 
+#the 'best' regression line (or 'fitting' a line to the data) is known as ordinary 
+#least squares.
+
+# Here we show code which demonstrates how changing the slope of the regression 
+#line affects the mean squared error between actual and predicted values.
+myPlot <- function(beta){
+  y <- galton$child - mean(galton$child)
+  x <- galton$parent - mean(galton$parent)
+  freqData <- as.data.frame(table(x, y))
+  names(freqData) <- c("child", "parent", "freq")
+  plot(
+    as.numeric(as.vector(freqData$parent)), 
+    as.numeric(as.vector(freqData$child)),
+    pch = 21, col = "black", bg = "lightblue",
+    cex = .15 * freqData$freq, 
+    xlab = "parent", 
+    ylab = "child"
+  )
+  abline(0, beta, lwd = 3)
+  points(0, 0, cex = 2, pch = 19)
+  mse <- mean( (y - beta * x)^2 )
+  title(paste("beta = ", beta, "mse = ", round(mse, 3)))
+}
+manipulate(myPlot(beta), beta = manipulate::slider(0.4, .8, step = 0.02))
+#find the minimum squared error:                      .64
+#value of the slope minimizes the mean squared error: 5
+
+#TO NORMALIZE DATA: subtract its mean and divide by its standard deviation
+y <- galton$child
+x <- galton$parent
+gpa_nor <- (x - mean(x))/sd(x)
+gch_nor <- (y - mean(y))/sd(y)
+
+#the correlation between these normalized data sets
+cor(gpa_nor,gch_nor)
+# How does this correlation relate to the correlation of the unnormalized data?
+#It is the same.
+
+#generate the regression line using this normalized data
+#lm function formula: dependent ~ independent
+l_nor <- lm(gch_nor ~ gpa_nor)
+#the slope of this line is The correlation of the 2 data sets
+
+# If you swapped the outcome (Y) and predictor (X) of your original (unnormalized) data, 
+#(for example, used childrens' heights to predict their parents), 
+#the slope of the new regression line be: correlation(X,Y) * sd(X)/sd(Y)
+
+
+#plot the original Galton data points with larger dots for more freq pts
+y <- galton$child
+x <- galton$parent
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child", "parent", "freq")
+plot(as.numeric(as.vector(freqData$parent)), 
+     as.numeric(as.vector(freqData$child)), 
+     pch = 21, col = "black", bg = "lightblue",
+     cex = .07 * freqData$freq, xlab = "parent", ylab = "child")
+
+#original regression line, children as outcome, parents as predictor
+abline(mean(y) - mean(x) * cor(y, x) * sd(y) / sd(x), #intercept
+       sd(y) / sd(x) * cor(y, x),  #slope
+       lwd = 3, col = "red")
+
+#new regression line, parents as outcome, children as predictor
+abline(mean(y) - mean(x) * sd(y) / sd(x) / cor(y, x), #intercept
+       sd(y) / cor(y, x) / sd(x), #slope
+       lwd = 3, col = "blue")
+
+#assume correlation is 1 so slope is ratio of std deviations
+abline(mean(y) - mean(x) * sd(y) / sd(x), #intercept
+       sd(y) / sd(x),  #slope
+       lwd = 2)
+points(mean(x), mean(y), cex = 2, pch = 19) #big point of intersection
+
+# We'll close with a final display of source code from the slides. 
+#It plots the galton data with three regression lines, 
+#the original in red with the children as the outcome, 
+#a new blue line with the parents' as outcome and childrens' as predictor, 
+#and a black line with the slope scaled so it equals the ratio of 
+#the standard deviations.
+#############################
+
+
+############################# Residual Variation
+#residuals are useful for indicating how well data points fit a statistical model. 
+#They "can be thought of as the outcome (Y) with the linear association of 
+#the predictor (X) removed. One differentiates residual variation (variation after 
+#removing the predictor) from systematic variation (variation explained 
+#by the regression model)."
+
+sqrt(sum(fit$residuals^2) / (n - 2))
+summary(fit)$sigma #"sigma" portion of the summary of fit
+
+sqrt(deviance(fit)/(n-2)) #sqrt of "deviance(fit)/(n-2)"
+
+#Total Variation = Residual Variation + Regression Variation
+#Yi-mean(Yi) - sum of squared term represented Total Variation
+#Yi-Yi_hat   - sum of squared term represents Residual Variation
+
+#the mean of the children's heights
+mu <- mean(galton$child)
+
+#centering data means subtracting the mean from each data point
+#the sum of the squares of the centered children's heights
+sTot <- sum((galton$child-mu)^2)
+
+# calculate the sum of the squares of the residuals. 
+#These are the distances between the children's heights and the regression line. 
+#This represents the Residual Variation.
+sRes <- deviance(fit)
+
+#the ratio sRes/sTot represents the percent of total variation contributed 
+#by the residuals. To find the percent contributed by the model, i.e., 
+#the regression variation, subtract the fraction sRes/sTot from 1.  
+#This is the value R^2.
+1-sRes/sTot
+#This value could be compared with
+summary(fit)$r.squared
+#or
+cor(galton$child, galton$parent)^2
+
+
+#Summary: R^2 is the percentage of variation explained by the regression model. 
+#As a percentage it is between 0 and 1. It also equals the sample correlation squared.
+#############################
+```
