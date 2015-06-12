@@ -1,0 +1,37 @@
+```{r}
+############## Multivariate Regression##############
+# analyse the relationship between features. make assumptions what influences
+#on the final result. (relationship between of the predictor and the response).
+# selecting proper model
+# starting point for a prediction algorithm
+
+#performing multivariate regression = pick any regressor and replace the outcome 
+#and all other regressors by their residuals against the chosen one
+
+#Models: 
+#1. The linear model: The general linear model extends simple linear regression (SLR) by adding 
+#terms linearly into the model. $$ Y_i = \beta_1 X_{1i} + \beta_2 X_{2i} + \ldots + \beta_{p} X_{pi} + \epsilon_{i} = \sum_{k=1}^p X_{ik} \beta_j + \epsilon_{i} $$
+#2. Least squares: Least squares (and hence ML estimates under iid Gaussianity of the errors) minimizes $$ \sum_{i=1}^n \left(Y_i - \sum_{k=1}^p X_{ki} \beta_j\right)^2 $$
+
+# simulate the data
+#3 predictors, 100 observations
+n = 100; x = rnorm(n); x2 = rnorm(n); x3 = rnorm(n) 
+# equation = intercept + var1 + var2 + var3 + error
+y = 1 + x + x2 + x3 + rnorm(n, sd = .1)
+# residual of y regressed on var2 and var3
+ey = resid(lm(y ~ x2 + x3))
+# residual of y regressed on var2 and var3
+ex = resid(lm(x ~ x2 + x3))
+
+# estimate beta1 for var1
+sum(ey * ex) / sum(ex ^ 2)
+#or
+coef(lm(ey ~ ex - 1))
+#or
+coef(lm(y ~ x + x2 + x3))
+
+#So that the interpretation of a multivariate regression coefficient is the 
+#expected change in the response per unit change in the regressor, 
+#holding all of the other regressors fixed.
+
+```
