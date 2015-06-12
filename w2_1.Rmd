@@ -1,0 +1,269 @@
+```{r}
+############## Statistical Linear Regression Models##############
+#goal is use statistics to draw inferences -> generalize from data to population 
+#through models
+
+#probabilistic model for linear regression:
+#Yi = beta0 + beta1*Xi + ei
+
+#beta0 = expected value of the outcome/response when the predictor is 0
+#beta1 = expected change in outcome/response for a 1 unit change in the predictor
+
+#95% confidence intervals for the coefficients can be constructed from 
+#the coefficients themselves and their standard errors (from summary(lm))
+#– use the resulting intervals to evaluate the significance of the results
+##############
+
+############## Residuals
+#Residual, ei = difference between the observed and predicted outcome
+#ei = Yi − ˆYi
+#– Or, vertical distance between observed data point and regression line
+#– Least squares minimizes sum(ei^2)
+
+library(UsingR); data(diamonds)
+# get data
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+# linear fit 
+fit <- lm(y ~ x)
+
+e <- resid(fit)       #ei coefficient
+yhat <- predict(fit)  #ˆYi coefficient
+
+#test manually that the residuals calculated by resid() function is the same
+#substracting the manually calculated numbers
+max(abs(e-(y-yhat)))  #0
+#or
+max(abs(e - (y - coef(fit)[1] - coef(fit)[2] * x))) #0
+
+sum(e) #sum of the residuals is 0
+sum(e*x) #sum of the residuals is 0
+
+# plot typical picture of the distribution
+plot(diamond$carat, diamond$price,  
+     xlab = "Mass (carats)", 
+     ylab = "Price (SIN $)", 
+     bg = "lightblue", 
+     col = "black", cex = 1.1, pch = 21,frame = FALSE)
+abline(fit, lwd = 2) #add regression line
+#draw residuals as red lines
+for(i in 1 : n)
+  lines(c(x[i], x[i]), c(y[i], yhat[i]), col = "red", lwd = 2) 
+
+# plot with more focus on residuals 
+plot(x, e,  
+     xlab = "Mass (carats)", 
+     ylab = "Residuals (SIN $)", 
+     bg = "lightblue", 
+     col = "black", cex = 2, pch = 21,frame = FALSE)
+abline(h=0, lwd = 2) #add regression line
+#draw residuals as red lines
+for(i in 1 : n)
+  lines(c(x[i], x[i]), c(e[i], 0), col = "red", lwd = 2) 
+
+#Plot analysis:
+# We can see some items have exactly the same mass measured
+
+############## How residuals can help with an analysis
+#Example1. Non-linear data
+library(ggplot2)
+x = runif(100, -3, 3)       #100 random values 
+y = x + sin(x) + rnorm(100, sd = .2)
+
+g = ggplot(data.frame(x = x, y = y), aes(x = x, y = y))
+g = g + geom_smooth(method = "lm", colour = "black")
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g
+#result: hard to see something here.
+
+# residuals plot
+g = ggplot(data.frame(x = x, y = resid(lm(y ~ x))), 
+           aes(x = x, y = y))
+g = g + geom_hline(yintercept = 0, size = 2); 
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g = g + xlab("X") + ylab("Residual")
+g
+
+##Heteroskedasticity
+# С помощью высот (residuals) мы можем сказать по графику(или расчитать),
+#насколько Гетероскедастичны (однородны) данные. 
+# Если недостаточно, то данные могут не годитьтся для анализа и для частичной
+#выборки из популяции не будет возможно правильно разделить точки прямой линией.
+# Данные должны быть гомоскедастичны.
+
+#plot of a Heteroskedastic data
+x <- runif(100, 0, 6); y <- x + rnorm(100,  mean = 0, sd = .001 * x); 
+g = ggplot(data.frame(x = x, y = y), aes(x = x, y = y))
+g = g + geom_smooth(method = "lm", colour = "black")
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g
+
+# residuals plot of a Heteroskedastic data
+g = ggplot(data.frame(x = x, y = resid(lm(y ~ x))), 
+           aes(x = x, y = y))
+g = g + geom_hline(yintercept = 0, size = 2); 
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g = g + xlab("X") + ylab("Residual")
+g
+
+#Example2. Diamonds
+
+# plot residuals
+diamond$e <- resid(lm(price ~ carat, data = diamond))
+g = ggplot(diamond, aes(x = carat, y = e))
+g = g + xlab("Mass (carats)")
+g = g + ylab("Residual price (SIN $)")
+g = g + geom_hline(yintercept = 0, size = 2)
+g = g + geom_point(size = 7, colour = "black", alpha=0.5)
+g = g + geom_point(size = 5, colour = "blue", alpha=0.2)
+g
+
+#vector of intercept (around avg price)
+e = c(resid(lm(price ~ 1, data = diamond)),
+      #var around the regression line
+      resid(lm(price ~ carat, data = diamond)))
+fit = factor(c(rep("Itc", nrow(diamond)),
+               rep("Itc, slope", nrow(diamond))))
+g = ggplot(data.frame(e = e, fit = fit), aes(y = e, x = fit, fill = fit))
+g = g + geom_dotplot(binaxis = "y", size = 2, stackdir = "center", binwidth = 20)
+g = g + xlab("Fitting approach")
+g = g + ylab("Residual price")
+g
+#left side: variation in prices around avg price
+#right:     variation around the regression line
+##############
+
+############## Estimating Residual Variation
+#residual variation measures how well the regression line fit the data points
+
+# get data
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+# linear fit
+fit <- lm(y ~ x)
+# calculate residual variation through summary and manual
+rbind("from summary" = summary(fit)$sigma, "manual" =sqrt(sum(resid(fit)^2) / 
+                                                            (n - 2)))
+
+#total variation = residual variation (variation after removing predictor) + 
+#systematic/regression variation (variation explained by regression model)
+
+#R^2 = percent of total variability that is explained by the regression model
+#(if the R^2 is high, the data is more noisy)
+
+#Example. Analysing the plot visually
+data(anscombe);example(anscombe)
+#y1 - good regression line. slight noise
+#y2 - miss term. not good
+#y3 - outlier
+#y4 - it is in the same location
+##############
+
+
+
+
+##############Inference in Regression##############
+#statistics used for hypothesis tests and confidence intervals
+
+
+##############Intervals/Tests for Coefficients
+#can be used to create confidence intervals and perform hypothesis tests.
+
+#Example. Calculate price intervals for a specified weight (confidence interval):
+
+##1. Manual calculations using formulas:
+# getting data
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+# calculate beta1
+beta1 <- cor(y, x) * sd(y) / sd(x)
+# calculate beta0
+beta0 <- mean(y) - beta1 * mean(x)
+# Gaussian regression error
+e <- y - beta0 - beta1 * x
+# unbiased estimate for variance
+sigma <- sqrt(sum(e^2) / (n-2))
+# (X_i - X Bar)
+ssx <- sum((x - mean(x))^2)
+# calculate standard errors
+seBeta0 <- (1 / n + mean(x) ^ 2 / ssx) ^ .5 * sigma
+seBeta1 <- sigma / sqrt(ssx)
+# testing for H0: beta0 = 0 and beta0 = 0
+tBeta0 <- beta0 / seBeta0; tBeta1 <- beta1 / seBeta1
+# calculating p-values for Ha: beta0 != 0 and beta0 != 0 (two sided)
+pBeta0 <- 2 * pt(abs(tBeta0), df = n - 2, lower.tail = FALSE)
+pBeta1 <- 2 * pt(abs(tBeta1), df = n - 2, lower.tail = FALSE)
+# store results into table
+coefTable <- rbind(c(beta0, seBeta0, tBeta0, pBeta0), c(beta1, seBeta1, tBeta1, pBeta1))
+colnames(coefTable) <- c("Estimate", "Std. Error", "t value", "P(>|t|)")
+rownames(coefTable) <- c("(Intercept)", "x")
+# print table
+coefTable
+
+#2. Using R functions:
+# regression model and the generated table from lm (identical to above)
+fit <- lm(y ~ x); summary(fit)$coefficients
+# store results in matrix
+sumCoef <- summary(fit)$coefficients
+# print out confidence interval for beta0
+sumCoef[1,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[1, 2]
+# print out confidence interval for beta1 in 1/10 units
+(sumCoef[2,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[2, 2]) / 10
+
+# result: With 95% confidence, we estimate that a 0.1 carat increase in diamond 
+#size results in a 355.6 to 388.6 increase in price in (Singapore) dollars.
+##############
+
+
+##############Prediction Interval
+# predict(fitModel, data, interval = ("confidence")) = returns a 3-column matrix 
+#with data for fit (regression line), 
+#lwr (lower bound of interval), and upr (upper bound of interval)
+#– interval = ("confidence") = returns interval for the line
+#– interval = ("prediction") = returns interval for the prediction
+#– data = must be a new data frame with the values you would like to predict
+
+#Example
+##1. Using R function predict()
+# create a sequence of values that we want to predict at
+newx = data.frame(x = seq(min(x), max(x), length = 100))
+# calculate values for both intervals
+p1 = data.frame(predict(fit, newdata= newx,interval = ("confidence")))
+p2 = data.frame(predict(fit, newdata = newx,interval = ("prediction")))
+# add column for interval labels
+p1$interval = "confidence"; p2$interval = "prediction"
+# add column for the x values we want to predict
+p1$x = newx$x; p2$x = newx$x
+# combine the two dataframes
+dat = rbind(p1, p2)
+# change the name of the first column to y
+names(dat)[1] = "y"
+# plot the data
+g <- ggplot(dat, aes(x = x, y = y))
+g <- g + geom_ribbon(aes(ymin = lwr, ymax = upr, fill = interval), alpha = 0.2)
+g <- g + geom_line()
+g + geom_point(data = data.frame(x = x, y=y), aes(x = x, y = y), size = 4)
+# Analysis, interpretation: this plot shows the confidence interval, 
+#where the most part of possible values should be (near the mean);
+#and prediction interval, where the next possible value can take place.
+
+#2. Manually
+# plot the x and y values
+plot(x,y,frame=FALSE,xlab="Carat",ylab="Dollars",pch=21,col="black",bg="lightblue",cex=2)
+# add the fit line
+abline(fit,lwd=2)
+# create sequence of x values that we want to predict at
+xVals<-seq(min(x),max(x),by=.01)
+# calculate the predicted y values
+yVals<-beta0+beta1*xVals
+# calculate the standard errors for the interval for the line
+se1<-sigma*sqrt(1/n+(xVals-mean(x))^2/ssx)
+# calculate the standard errors for the interval for the predicted values
+se2<-sigma*sqrt(1+1/n+(xVals-mean(x))^2/ssx)
+# plot the upper and lower bounds of both intervals
+lines(xVals,yVals+2*se1); lines(xVals,yVals-2*se1)
+lines(xVals,yVals+2*se2); lines(xVals,yVals-2*se2)
+
+##############
+```
