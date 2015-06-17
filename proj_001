@@ -1,0 +1,128 @@
+# Motor Trend. The relationship between a set of variables and miles per gallon  research.
+
+## Introduction
+You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+Q1. “Is an automatic or manual transmission better for MPG”
+Q2. "Quantify the MPG difference between automatic and manual transmissions"
+
+## Exploratory data analysis
+The data contains Motor Trend Car Road Tests and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models). 
+
+A data frame with 32 observations on 11 variables.
+
+[mpg]   Miles/(US) gallon
+[cyl]	 Number of cylinders
+[disp]	 Displacement (cu.in.)
+[hp]	 Gross horsepower
+[drat]	 Rear axle ratio
+[wt]	 Weight (lb/1000)
+[qsec]	 1/4 mile time
+[vs]	 V/S
+[am]	 Transmission (0 = automatic, 1 = manual)
+[gear]	 Number of forward gears
+[carb]	 Number of carburetors
+
+```{r}
+summary(mtcars)
+```
+
+## Start of the analysis
+The result of the analysis is to answer on 2 questions mentioned in the introduction. 
+To find out the relation between an automatic/manual transmission with fuel consumption (Q1) we can use [am] (see data analysis) as predictor and [mpg] as outcome and fit a linear model.
+First we need to understand what really influences on mpg:
+
+the correlation between these normalized data sets
+cor(gpa_nor,gch_nor)
+# How does this correlation relate to the correlation of the unnormalized data?
+#It is the same.
+
+
+
+
+## Coefficients interpretation
+```{r}
+mpg <- mtcars$mpg
+am  <- mtcars$am
+
+fit <- lm(mpg ~ am)
+summary(fit)
+coef(summary(fit))
+```
+
+```{r}
+coef(summary(fit))[2]
+``` 
+The slope of the line is the estimate of the coefficient, or muliplier, of "transmission type", the independent variable of our data  (in this case, the transmission type)
+
+```{r}
+coef(summary(fit))[2] # The slope of the line is the estimate of the coefficient, or muliplier, of "transmission type", the independent variable of our data  (in this case, the transmission type)
+coef(summary(fit))[4] # The standard error of the slope
+``` 
+A coefficient will be within 2 standard errors of its estimate about 95% of the time. This means the slope of our regression is between:
+```{r}
+coef(summary(fit))[2] + c(-1,1) * (2*coef(summary(fit))[4])
+```
+
+Normalizing the variables in the slope
+```{r}
+am_n <- (am - mean(am))/sd(am)
+mpg_n <- (mpg - mean(mpg))/sd(mpg)
+fit_n <- lm(mpg_n ~ am_n)
+coef(fit_n)[2]
+```
+
+To be sure in the slope coefficient, calculate we are centering the data
+```{r}
+am_c <- (am - mean(am))
+mpg_c <- (mpg - mean(mpg))
+fit_c <- lm(mpg_c ~ am_c - 1) #forces a regression line to go through the origin (0, 0)
+coef(fit_c)[1]
+```
+The slope coefficient is the same.
+
+
+
+
+We can fit the regression line with the confidence interval around on the plot
+```{r}
+# 
+# constructs table for different combination of parent-child height
+freqData <- NULL
+freqData <- as.data.frame(table(mpg, am))
+#names(freqData) <- c("mpg", "am", "freq")
+# convert to numeric values
+freqData$mpg <- as.numeric(as.character(freqData$mpg))
+freqData$am <- as.numeric(as.character(freqData$am))
+
+g <- NULL
+g <- ggplot(freqData[which(freqData$freq > 0),], aes(x = am, y = mpg))
+g <- g + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="gray50", aes(size = freq+10, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="blue")
+
+g <- g + geom_smooth(method="lm", formula=y~x)
+g
+```
+This plot shows us the regression line between the factors with the confidence interval and dependency between [mpg] and [transmission type] values grouped by frequency.
+
+Result: As we can see using an automatic transmission increases the amount of miles per gallon. We can say in average a manual transmission decreases the amount of miles of gallon by the slope coefficient (~`r as.double(round(coef(fit)[2],2))` miles per gallon) +/- double standart error (95% interval = 2 \* `as.double(round(coef(summary(fit))[4],2))` = `as.double(round(coef(summary(fit))[4],2)) * 2` miles per gallon).
+
+
+## fit multiple models and detail their strategy for model selection
+ 
+
+## answer the questions of interest or detail why the question(s) is (are) not answerable
+ 
+
+# Residual plot diagnostics
+```{r}
+
+```
+ 
+ quantify the uncertainty in their conclusions and/or perform an inference correctly
+ 
+#  the report brief (about 2 pages long) for the main body of the report and no longer than 5 with supporting appendix of figures
+  
+   include an executive summary
