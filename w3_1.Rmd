@@ -1,0 +1,291 @@
+############## Multivariate Regression##############
+# analyse the relationship between features. make assumptions what influences
+#on the final result. (relationship between of the predictor and the response).
+# selecting proper model
+# starting point for a prediction algorithm
+
+#performing multivariate regression = pick any regressor and replace the outcome 
+#and all other regressors by their residuals against the chosen one
+
+#Models: 
+#1. The linear model: The general linear model extends simple linear regression (SLR) by adding 
+#terms linearly into the model. $$ Y_i = \beta_1 X_{1i} + \beta_2 X_{2i} + \ldots + \beta_{p} X_{pi} + \epsilon_{i} = \sum_{k=1}^p X_{ik} \beta_j + \epsilon_{i} $$
+#2. Least squares: Least squares (and hence ML estimates under iid Gaussianity of the errors) minimizes $$ \sum_{i=1}^n \left(Y_i - \sum_{k=1}^p X_{ki} \beta_j\right)^2 $$
+
+# simulate the data
+#3 predictors, 100 observations
+n = 100; x = rnorm(n); x2 = rnorm(n); x3 = rnorm(n) 
+# equation = intercept + var1 + var2 + var3 + error
+y = 1 + x + x2 + x3 + rnorm(n, sd = .1)
+# residual of y regressed on var2 and var3
+ey = resid(lm(y ~ x2 + x3))
+# residual of y regressed on var2 and var3
+ex = resid(lm(x ~ x2 + x3))
+
+# estimate beta1 for var1
+sum(ey * ex) / sum(ex ^ 2)
+#or
+coef(lm(ey ~ ex - 1))
+#or
+coef(lm(y ~ x + x2 + x3))
+
+#So that the interpretation of a multivariate regression coefficient is the 
+#expected change in the response per unit change in the regressor, 
+#holding all of the other regressors fixed.
+
+
+############## Multivariate Regression Examples
+#Ex 1: Swiss Fertility and Socioeconomic Indicators (1888) Data
+require(datasets); data(swiss); ?swiss
+
+summary(lm(Fertility ~ . , data = swiss))
+# Example interpretation:
+# - Agriculture is expressed in percentages (0 - 100)
+# - Estimate is -0.1721.
+# - Our models estimates an expected 0.17 decrease in standardized fertility for every 1% increase in percentage of males involved in agriculture in holding the remaining variables constant.
+# - The t-test for $H_0: \beta_{Agri} = 0$ versus $H_a: \beta_{Agri} \neq 0$ is significant.
+# - Interestingly, the unadjusted estimate is
+#---or---
+# Interpretation for Agriculture coefficient
+#- we expect an -0.17 decrease in standardized fertility for every 1% increase in percentage of
+#males involved in agriculture in holding the remaining variables constant
+#- since the p-value is 0.0187272, the t-test for H0 versus Ha is significant
+# However, if we look at the unadjusted estimate (marginal regression) for the coefficient for Agriculture
+
+summary(lm(Fertility ~ Agriculture, data = swiss))$coefficients
+# Interpretation for Agriculture coefficient:
+#- we expect an 0.19 increase in standardized fertility for every 1% increase in percentage of males
+#involved in agriculture in holding the remaining variables constant
+#* Note: the coefficient flipped signs
+#- since the p-value is 0.0149172, the t-test for H0 versus Ha is significant
+# to see intuitively how a sign change is possible, we can look at the following simulated example
+
+
+
+
+###How can adjustment reverse the sign of an effect? Let's try a simulation.
+# simulate data
+n <- 100; x2 <- 1 : n; x1 <- .01 * x2 + runif(n, -.1, .1); y = -x1 + x2 + rnorm(n, sd = .01)
+
+# print coefficients
+c("with x1" = summary(lm(y ~ x1))$coef[2,1],
+  "with x1 and x2" = summary(lm(y ~ x1 + x2))$coef[2,1])
+
+# print p-values
+c("with x1" = summary(lm(y ~ x1))$coef[2,4],
+  "with x1 and x2" = summary(lm(y ~ x1 + x2))$coef[2,4])
+
+# store all data in one data frame (ey and ex1 are residuals with respect to x2)
+dat <- data.frame(y = y, x1 = x1, x2 = x2, ey = resid(lm(y ~ x2)), ex1 = resid(lm(x1 ~ x2)))
+# plot y vs x1
+g <- ggplot(dat, aes(y = y, x = x1, colour = x2)) +
+  geom_point(colour="grey50", size = 2) +
+  geom_smooth(method = lm, se = FALSE, colour = "black") + geom_point(size = 1.5) +
+  ggtitle("unadjusted = y vs x1")
+
+# plot residual of y adjusted for x2 vs residual of x1 adjusted for x2
+g2 <- ggplot(dat, aes(y = ey, x = ex1, colour = x2)) +
+  geom_point(colour="grey50", size = 2) +
+  geom_smooth(method = lm, se = FALSE, colour = "black") + geom_point(size = 1.5) +
+  ggtitle("adjusted = y, x1 residuals with x2 removed") + labs(x = "resid(x1~x2)",
+                                                               y = "resid(y~x2)")
+# combine plots
+#multiplot(g, g2, cols = 2)
+library(grid)
+library(gridExtra)
+grid.arrange(g, g2, ncol = 2)
+
+#Plot Results:
+# As we can see from above, the correlation between y and x1 flips signs when adjusting for x2
+# This effectively means that within each consecutive group/subset of points (each color gradient) on the
+#left hand plot (unadjusted), there exists a negative relationship between the points while the overall
+#trend is going up
+# Going back to the swiss data set, the sign of the coefficient for Agriculture reverses itself with the
+#inclusion of Examination and Education (both are negatively correlated with Agriculture)
+#- correlation between Agriculture and Education: -0.64
+#- correlation between Agriculture and Examination: -0.69
+#- correlation between Education and Examination: 0.7
+#* this means that the two variables are likely to be measuring the same things
+# Note: it is difficult to interpret and determine which one is the correct model ! one should
+#not claim positive correlation between Agriculture and Fertility simply based on marginal regression
+#lm(Fertility ~ Agriculture, data=swiss)
+
+###Ex 2: Unnecessary Variables
+#unnecessary predictors = variables that don't provide any new linear information, meaning that
+#the variable are simply linear combinations (multiples, sums) of other predictors/variables
+# When running a linear regression with unnecessary variables, R automatically drops the linear combinations
+#and returns NA as their coefficients
+
+# add a linear combination of agriculture and education variables
+z <- swiss$Agriculture + swiss$Education
+# run linear regression with unnecessary variables
+lm(Fertility ~ . + z, data = swiss)$coef
+
+#as we can see above, the R dropped the unnecessary variable z by excluding it 
+#from the linear regression -> z's coefficient is NA
+
+
+
+
+###Dummy Variables
+# Dummy variables = binary variables that take on value of 1 when the measurement is in a particular
+#group, and 0 when the measurement is not (i.e. in clinical trials, treated = 1, untreated = 0).
+
+#- predicted mean for group = beta0 + beta1
+#- predicted mean for not in group = beta0
+#- coefficient beta1 for Xi1 is interpreted as the increase or decrease in the mean when comparing
+#two groups (in vs not)
+
+
+
+###More than 2 levels of factor
+#Consider a multilevel factor level. For didactic reasons, let's say a three level factor (example, US political party affiliation: Republican, Democrat, Independent)
+
+#for 3 factor levels, we would need 2 dummy variables and the model would be:
+#Yi =beta0 + Xi1*beta1 + Xi2*beta2 + ei
+
+#- Xi1 = 1 for Republicans and 0 otherwise
+#- Xi2 = 1 for Democrats and 0 otherwise
+#- If i is Republican, Xi1 = 1, Xi2 = 0, E[Yi] = beta0 + beta1
+#- If i is Democrat, Xi1 = 0, Xi2 = 1, E[Yi] = beta0 + beta2
+#- If i is independent, Xi1 = 0, Xi2 = 0, E[Yi] = beta0
+#- beta1 compares Republicans to independents
+#- beta2 compares Democrats to independents
+#- beta1-beta2 compares Republicans to Democrats
+
+
+#Ex: Factor Level Insect Spray Data
+#below is a violin plot of the 6 different types (A, B, C, D, E, and F) of insect sprays and their potency
+#(kill count) from InsectSprays data set
+# load insect spray data
+data(InsectSprays)
+ggplot(data = InsectSprays, aes(y = count, x = spray, fill = spray)) +
+  geom_violin(colour = "black", size = 2) + xlab("Type of spray") +
+  ylab("Insect count")
+
+# linear fit with 5 dummy variables
+summary(lm(count ~ spray, data = InsectSprays))$coefficients
+# Note: R automatically converts factor variables into n-1 dummy variables and uses the first category
+#as reference
+#- mean of group A is therefore the default intercept
+# The above coefficients can be interpreted as the difference in means between each group (B, C, D, E,
+#and F) and group A (the intercept)
+#- example: the mean of group B is 0.83 higher than the mean of group A, which is 14.5
+#- means for group B/C/D/E/F = the intercept + their respective coefficient
+# All t-tests are for comparisons of Sprays versus Spray A
+#or 
+#manual approach for double check: this produces the exact same result as the command lm(count ~ spray, data = InsectSprays)
+# hard coding dummy variables
+lm(count ~ I(1 * (spray == 'B')) + I(1 * (spray == 'C')) +
+     I(1 * (spray == 'D')) + I(1 * (spray == 'E')) +
+     I(1 * (spray == 'F')), data = InsectSprays)$coefficients
+# and include all
+# linear fit with 6 dummy variables
+lm(count ~ I(1 * (spray == 'B')) + I(1 * (spray == 'C')) +
+     I(1 * (spray == 'D')) + I(1 * (spray == 'E')) +
+     I(1 * (spray == 'F')) + I(1 * (spray == 'A')),
+   data = InsectSprays)$coefficients
+#as we can see from above, the coefficient for group A is NA
+# This is because XiA = 1 - XiB - XiC - XiD - XiE - XiF , or the dummy variable for A is a linear
+#combination of the rest of the dummy variables
+# or 
+# XiB + XiC + XiD + XiE + XiF + XiA = 1
+
+
+### Linear model fit with omitted intercept
+#eliminating the intercept would mean that each group is compared to the value 0, which would yield 6
+#variables since A is no longer the reference category
+
+# linear model with omitted intercept
+summary(lm(count ~ spray - 1, data = InsectSprays))$coefficients
+
+# actual means of count by each variable
+round(tapply(InsectSprays$count, InsectSprays$spray, mean), 2)
+
+#to reorient the model with other groups as reference categories, we can simply reorder the levels for
+#the factor variable
+#– relevel(var, "l") = reorders the factor levels within the factor variable var such that the
+#specified level “l” is the reference/base/lowest level
+#R automatically uses the first/base level as the reference category during a linear
+#regression
+
+# reorder the levels of spray variable such that C is the lowest level
+spray2 <- relevel(InsectSprays$spray, "C")
+# rerun linear regression with releveled factor
+summary(lm(count ~ spray2, data = InsectSprays))$coef
+
+
+
+###Interactions between variables
+#interactions between variables can be added to a regression model to test how the outcomes change
+#under different conditions
+
+#hunger.csv:
+#https://github.com/bcaffo/courses/blob/master/07_RegressionModels/02_02_multivariateExamples/hunger.csv
+
+# load in hunger data
+hunger <- read.csv("hunger.csv")
+# exclude the data with "Both Sexes" as values (only want Male vs Female)
+hunger <- hunger[hunger$Sex!="Both sexes", ]
+# structure of data
+str(hunger)
+
+#Model: % Hungry ~ Year by Sex:
+#Hi = beta0 + beta1Xi + beta2Yi + ei
+#- beta0 = % of females hungry at year 0
+#- beta0 + beta1 = % of males hungry at year 0
+#- beta2 = decrease in % hungry (males and females) per year
+#- ei = standard error (or everything we didn’t measure)
+
+# run linear model with Numeric vs Year for male and females
+male.fit <- lm(Numeric ~ Year, data = hunger[hunger$Sex == "Male", ])
+female.fit <- lm(Numeric ~ Year, data = hunger[hunger$Sex == "Female", ])
+# plot % hungry vs the year
+plot(Numeric ~ Year, data = hunger, pch = 19, col=(Sex=="Male")*1+1)
+# plot regression lines for both
+abline(male.fit, lwd = 3, col = "black")
+abline(female.fit, lwd = 3, col = "red")
+
+
+##Model: % Hungry ~ Year + Sex (Binary Variable):
+#this will include 1 model with 2 separate lines with the same slope
+#Hi = beta0 + beta1Xi + beta2Yi + ei
+
+# run linear model with Numeric vs Year and Sex
+both.fit <- lm(Numeric ~ Year+Sex, data = hunger)
+# print fit
+both.fit$coef
+# plot % hungry vs the year
+plot(Numeric ~ Year, data = hunger, pch = 19, col=(Sex=="Male")*1+1)
+# plot regression lines for both (same slope)
+abline(both.fit$coef[1], both.fit$coef[2], lwd = 3, col = "black")
+abline(both.fit$coef[1]+both.fit$coef[3], both.fit$coef[2], lwd = 3, col = "red")
+
+
+##Model: % Hungry ~ Year + Sex + Year * Sex (Binary Interaction):
+#this will include 1 model with an interaction term with binary variable, which produces 2 lines with
+#different slopes
+# We can introduce an interaction term to the previous model to capture the different slopes between
+#males and females
+# continuous interactions (two continuous variables) model:
+#Hi = beta0 + beta1Xi + beta2Yi + beta3XiYi + ei
+
+# run linear model with Numeric vs Year and Sex and interaction term
+interaction.fit <- lm(Numeric ~ Year*Sex, data = hunger)
+# print fit
+interaction.fit$coef
+# plot regression lines for both (same slope)
+abline(both.fit$coef[1], both.fit$coef[2], lwd = 3, col = "black")
+abline(both.fit$coef[1]+both.fit$coef[3], both.fit$coef[2], lwd = 3, col = "red")
+
+
+##Example: % Hungry ~ Year + Income + Year * Income (Continuous Interaction)
+#this will include 1 model with an interaction term with continuous variable, which produces a curve
+#through the plot
+#Yi = beta0 + beta1X1i + beta2X2i + beta3X1iX2i + ei
+
+# generate some income data
+hunger$Income <- 1:nrow(hunger)*10 + 500*runif(nrow(hunger), 0, 10) +
+  runif(nrow(hunger), 0, 500)^1.5
+# run linear model with Numeric vs Year and Income and interaction term
+lm(Numeric ~ Year*Income, data = hunger)$coef
