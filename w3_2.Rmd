@@ -1,0 +1,43 @@
+############## Multivariable Simulation ##############
+#we will generate a series of simulated data so that we know the true relationships, and then run linear
+#regressions to interpret and compare the results to truth
+
+# Treatment effect = effect of adding the treatment variable t to the regression model (i.e. how adding
+#t changes the regression lines)
+#- effectively measures how much the regression lines for the two groups separate with regression
+#lm(y ~ x + t)
+
+# Adjustment effect = adjusting the regression for effects of x such that we just look at how t is
+#marginally related to Y
+#- ignore all variation of x and simply look at the group means of t = 1 vs t = 0
+
+### Simulation 1 - Treatment = Adjustment Effect
+# The following code simulates the linear model:
+#Yi = beta0 + beta1xi + beta2ti + ei
+#where t = {0, 1} -> binary variable
+
+# simulate data
+n <- 100; t <- rep(c(0, 1), c(n/2, n/2)); x <- c(runif(n/2), runif(n/2));
+# define parameters/coefficients
+beta0 <- 0; beta1 <- 2; beta2 <- 1; sigma <- .2
+# generate outcome using linear model
+y <- beta0 + x * beta1 + t * beta2 + rnorm(n, sd = sigma)
+# set up axes
+plot(x, y, type = "n", frame = FALSE)
+# plot linear fit of y vs x
+abline(lm(y ~ x), lwd = 2, col = "blue")
+# plot means of the two groups (t = 0 vs t = 1)
+abline(h = mean(y[1 : (n/2)]), lwd = 3, col = "red")
+abline(h = mean(y[(n/2 + 1) : n]), lwd = 3, col = "red")
+# plot linear fit of y vs x and t
+fit <- lm(y ~ x + t)
+# plot the two lines corresponding to (t = 0 vs t = 1)
+abline(coef(fit)[1], coef(fit)[2], lwd = 3)
+abline(coef(fit)[1] + coef(fit)[3], coef(fit)[2], lwd = 3)
+# add in the actual data points
+points(x[1 : (n/2)], y[1 : (n/2)], pch = 21, col = "black", bg = "lightblue", cex = 1)
+points(x[(n/2 + 1) : n], y[(n/2 + 1) : n], pch = 21, col = "black", bg = "salmon", cex = 1)
+
+# print treatment and adjustment effects
+rbind("Treatment Effect" = lm(y~t+x)$coef[2], "Adjustment Effect" = lm(y~t)$coef[2])
+
