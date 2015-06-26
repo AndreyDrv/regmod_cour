@@ -1,0 +1,97 @@
+#Q2
+
+# 1. Estimate for the expected change
+# Consider the mtcars data set. 
+# Fit a model with mpg as the outcome that includes number of cylinders as a factor variable 
+# and weight as confounder. 
+# Give the adjusted estimate for the expected change in mpg comparing 8 cylinders to 4.
+
+data(mtcars)
+
+fit <- lm(mpg ~ factor(cyl) + wt, data = mtcars)
+
+# factor(cyl)8  = -6.071 
+# (intercept is cyl(4) off which cly(8) is compared)
+
+
+# 2. Checking the effect of the variable on fit
+# Consider the mtcars data set. 
+# Fit a model with mpg as the outcome that includes number of cylinders as a factor 
+# variable and weight as confounder. Compare the adjusted by weight effect of 8 
+# cylinders as compared to 4 the unadjusted. What can be said about the effect?.
+
+data(mtcars)
+
+fit1 <- lm(mpg ~ factor(cyl) + wt, data = mtcars)
+fit2 <- lm(mpg ~ factor(cyl), data = mtcars)
+
+fit2$coefficients[3]
+
+#Holding weight constant, cylinder appears to have less of an impact on mpg than if weight is disregarded.
+
+
+# 3. Comparing the two models
+# Consider the mtcars data set. 
+# Fit a model with mpg as the outcome that considers number of cylinders as a factor 
+# variable and weight as confounder. Consider the model with an interaction between 
+# cylinders and weight and one without. Give the P-value for the likelihood ratio 
+# test comparing the two models and suggest a model using 0.05 as a type I error 
+# rate significance benchmark.
+
+data(mtcars)
+
+fit1 <- lm(mpg ~ factor(cyl) + wt, data = mtcars)
+fit2 <- lm(mpg ~ factor(cyl) + wt + interaction(cyl, wt), data = mtcars)
+
+# To compare model we usually use an anova table
+# anova null hypothesis says that both models are the same.
+compare <- anova(fit1, fit2)
+#p-value for the F statistic to indicate whether the change in model is significant or not
+compare$Pr
+#The P-value is larger than 0.05. 
+#So, according to our criterion, we would fail to reject, 
+#which suggests that the interaction terms may not be necessary.
+
+
+# 4. Interpreting the input coefficient to linear model
+# Consider the mtcars data set. 
+# Fit a model with mpg as the outcome that includes number of cylinders as a 
+# factor variable and weight inlcuded in the model as
+lm(mpg ~ I(wt * 0.5) + factor(cyl), data = mtcars)
+# How is the wt coefficient interpretted?
+
+# note : ton = 2 tonnes
+# The estimated expected change in MPG per one ton increase in weight for 
+#a specific number of cylinders (4, 6, 8).
+
+
+# 5. Search for the influental point (hatvalues)
+#Give the hat diagonal for the most influential point
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+#fitting the line
+fit <- lm(y~x)
+#plotting the distribution
+plot(y ~ x)
+#plotting the fit line
+abline(lm(y ~ x), lwd = 2)
+#get hat values
+hatvalues(fit)
+#and find the outlier value (point 5)
+
+
+# 6. Search for the influental point (dfbeta)
+#Give the hat diagonal for the most influential point
+x <- c(0.586, 0.166, -0.042, -0.614, 11.72)
+y <- c(0.549, -0.026, -0.127, -0.751, 1.344)
+
+#fitting the line
+fit <- lm(y~x)
+#plotting the distribution
+plot(y ~ x)
+#plotting the fit line
+abline(lm(y ~ x), lwd = 2)
+#get hat values
+dfbetas(fit)
+#and find the outlier value (point 5)
