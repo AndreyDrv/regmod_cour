@@ -1,0 +1,386 @@
+############## General Linear Models Overview ##############
+
+# # general linear models has 3 parts:
+# 1. exponential family model for response/outcome (i.e. Gaussian, Bernoulli distribution)
+# 2. systematic component for linear predictor -> incorporates the information about the independent
+# variables into the model
+# - denoted by ... where X is a matrix of independent variables/predictors and .. is the
+# coefficients
+# 3. link function that connects means of the outcome/distribution to linear predictor
+# - the relationship is defined
+
+# limitations of linear models:
+#   - response can be discrete (i.e. 0, 1, etc.) or strictly positive -> linear response models don't make
+# much sense
+# - if outcome must be positive, Gaussian errors (?errors) don't make sense as negative outcomes are
+# possible
+# - transformations on predictors (log + 1) are often hard to interpret
+# * modeling the data on the scale that it was collected is most ideal
+# * even for interpretable transformations, natural logarithms specifically, aren't applicable for
+# negative/zero values
+
+# Types:
+#Logistic Regression (binomial/Bernoulli)
+#Poisson Regression
+
+############## General Linear Models - Binary Models (Bernoulli)
+#  Bernoulli/binary models are frequently used to model outcomes that have two values
+# - alive vs dead
+# - win vs loss
+# - success vs failure
+# - disease vs healthy
+#  binomial outcomes - collection of exchangeable binary outcomes (i.e. flipping coins repeatedly) for
+# the same covariate data
+# - in other words, we are interested in the count of predicted 1s vs 0s rather individual outcomes of 1
+# or 0
+
+## Example - Visualizing fitting logistic regression curves
+# we can manipulate the distribution
+x <- seq(-10, 10, length = 1000)
+manipulate(
+  plot(x, exp(beta0 + beta1 * x) / (1 + exp(beta0 + beta1 * x)), 
+       type = "l", lwd = 3, frame = FALSE),
+  beta1 = slider(-2, 2, step = .1, initial = 2),
+  beta0 = slider(-2, 2, step = .1, initial = 0)
+)
+# this shows the regression line between logistic values
+
+
+### Examples of the regressions - Baltimore Ravens Win vs Loss
+# the data contains the records 20 games for Baltimore Ravens
+# * ravenWinNum = 1 for Raven win, 0 for Raven loss
+# * ravenWin = W for Raven win, L for Raven loss
+# * ravenScore = score of the Raven team during the match
+# * opponentScore = score of the Raven team during the match
+
+# load the data
+load("ravensData.rda")
+head(ravensData)
+
+
+# Example 1 - Simple Linear Regression
+#the model wouldn't work well as the predicted results won't be 0 vs 1
+# - the error term, ei, is assumed to be continuous and normally distributed, meaning that the
+# prediction will likely be a decimal
+# - therefore, this is not a good assumption for the model
+
+# perform linear regression
+summary(lm(ravenWinNum ~ ravenScore, data = ravensData))
+#Result: the model produces a poor fit for the data (R^2 = 0.0987)
+
+
+# Example 2 - Logistic Regression
+# run logistic regression on data
+logRegRavens <- glm(ravenWinNum ~ ravenScore, data = ravensData,family="binomial")
+# print summary
+summary(logRegRavens)
+# - as we can see above, the coefficients beta0 and beta1 are -1.68, 0.107, 
+#which are interpreted to be the log odds ratios 
+#(beta0 - when they scores nothing, beta1 - increase of the log odds when they get a score)
+
+# - we can convert the log ratios as well as the log confidence intervals to ratios 
+#and confidence intervals (in the same units as the data)
+
+# take e^coefs to find the log ratios
+exp(logRegRavens$coeff)
+
+# take e^log confidence interval to find the confidence intervals
+exp(confint(logRegRavens))
+
+# plot the logistic regression
+plot(ravensData$ravenScore,logRegRavens$fitted,pch=19,col="blue",xlab="Score",ylab="Prob Ravens Win")
+
+# Note: exp(x) ~= 1 + x for small values (close to 0) of x, this can be a quick way to estimate the
+# coefficients
+#  - we can interpret the slope, beta1 as 11.247 % increase in probability of winning for every point scored
+#  - we can interpret the intercept, beta0 as 0.186 is the odds for Ravens winning if they scored 0 points
+#     - Note: similar to the intercept of a simple linear regression model, the intercept should be interpreted
+# carefully as it is an extrapolated value from the model and may not hold practical meaning
+
+
+
+### Example - ANOVA for Logistic Regression
+#ANOVA can be performed on a single logistic regression, in which it will analyze the change in variances
+#with addition of parameters in the model, or multiple nested logistic regression (similar to linear models)
+
+# perform analysis of variance
+anova(logRegRavens,test="Chisq")
+
+# ANOVA returns information about the model, link function, response, as well as analysis of variance
+# for adding terms
+# - Df = change in degrees of freedom
+# * the value 1 refers to adding the ravenScore parameter (slope)
+# - Deviance = measure of goodness of model fit compare to the previous model
+# - Resid. Dev = residual deviance for current model
+# - Pr(>Chi) = used to evaluate the significance of the added parameter
+# * in this case, the Deviance value of 3.54 is used to find the corresponding p-value from the
+# Chi Squared distribution, which is 0.06
+# ?Note: Chi Squared distribution with 1 degree of freedom is simply the squared of normal
+# distribution, so z statistic of 2 corresponds to 95% for normal distribution indicates that
+# deviance of 4 corresponds to approximately 5% in the Chi Squared distribution (which is
+#                                                                                what our result shows)
+
+
+############## General Linear Model and Odds
+
+# During the regular season the Ravens win about 55% of their games. What odds would I have to
+# offer in the regular season?
+# 11 to 9
+# or
+# 55 to 45
+# or
+# 1.22222 to 1
+# or
+# = p/(1-p)
+
+#(ravensData) We see a fairly rapid transition in the Ravens' win/loss record 
+# between 23 and 28 points. At 23 points and below they win about half their games, 
+# between 24 and 28 points they win 3 of 4, and above 28 points they win them all. 
+# From this, we get a very crude idea of the correspondence between points scored 
+# and the probability of a win. We get an S shaped curve, a graffiti S anyway.
+
+# the plot shows the distribution of win-lose score
+boxplot(ravenScore ~ ravenWin, ravenData, col=0x96, lwd=3, horizontal=TRUE, 
+        col.lab="purple", col.main="purple", xlab="Ravens' Score", 
+        main="Ravens' Wins and Losses vs Score")
+# shows correspondence curve
+plot(c(3,23,29,55), c(0.5, 0.5, 1.0, 1.0), type='l', lwd=5, col="purple", col.lab="purple", ylim=c(0.25,1),
+     xlab="Ravens' Score", ylab="Probability of a Ravens win", col.main="purple",
+     main="Crude estimate of Ravens' win probability\nvs the points which they score.")
+
+#A generalized linear model which has these properties supposes
+# that the log odds of a win depend linearly on the score. That is, log(p/(1-p)) = b0 + b1*score.
+# The link function, log(p/(1-p)), is called the logit, and the process of finding the best b0
+# and b1, is called logistic regression.
+#Based on the score of a game, b0 and b1 give us a log odds, which we can convert to a
+# probability, p, of a win. We would like p to be high for the scores of winning games, 
+# and low for the scores of losses.
+
+plot(c(3,23,29,55), c(0.5, 0.5, 1.0, 1.0), type='l', lwd=5, col="purple", col.lab="purple", ylim=c(0.25,1),
+     xlab="Ravens' Score", ylab="Probability of a Ravens win", col.main="purple",
+     main="Ravens' win vs score probabilities: GLM maximum likelihood estimates\ncompared to crude estimates.")
+lines(mdl$data$ravenScore, mdl$fitted.values, lwd=5, col="black")
+legend('bottomright', c("Crude estimates", "GLM maximum likelihood estimates"), lwd=5, lty=1,
+       col=c("purple", "black"))
+# The probabilities estimated by logistic regression using glm() are represented by the black
+# curve. It is more reasonable than our crude estimate in several respects: It increases smoothly
+# with score, it estimates that 15 points give the Ravens a 50% chance of winning, that 28 points
+# give them an 80% chance, and that 55 points make a win very likely (98%) but not absolutely
+# certain.
+# The model is less credible at scores lower than 9. Of course, there is no data in that region;
+#  the Ravens scored at least 9 points in every game. The model gives them a 33% chance of winning
+#  if they score 9 points, which may be reasonable, but it also gives them a 16% chance of winning
+#  even if they score no points!
+
+# We can use R's predict() function to see the model's estimates for lower scores.
+#predict() gives us log odds.
+lodds <- predict(mdl, data.frame(ravenScore=c(0, 3, 6)))
+
+#To convert log odds to probabilities use exp(lodds)/(1+exp(lodds))
+exp(lodds)/(1+exp(lodds))
+#Result: When the Ravens score no points, the model might like 16 to 84 odds.
+
+summary(mdl)
+#the estimated coefficients are both within 2 standard errors of zero (6%)
+
+#The coefficients estimate log odds as a linear function of points scored. 
+# They have a natural interpretation in terms of odds because, 
+# if b0 + b1*score estimates log odds, then exp(b0 + b1*score)=exp(b0)exp(b1*score) 
+# estimates odds. Thus exp(b0) is the odds of winning with a score
+# of 0 (in our case 16/84,) and exp(b1) is the factor by which the odds of winning increase with
+# every point scored. In our case exp(b1) = exp(0.10658) = 1.11. In other words, the odds of
+# winning increase by 11% for each point scored.
+
+#the coefficients have relatively large standard errors. A 95% confidence interval is
+# roughly 2 standard errors either side of a coefficient. R's function confint() will find the
+# exact lower and upper bounds to the 95% confidence intervals for the coefficients b0 and b1. To
+# get the corresponding intervals for exp(b0) and exp(b1) we would just exponentiate the output
+# of confint(mdl)
+exp(confint(mdl))
+#The 2.5% confidence bound on the odds of winning with a score of 0 points = 0.005674966
+# The lower confidence bound on the odds of winning with a score of 0 is near zero, which seems
+# much more realistic than the 16/84 figure of the maximum likelihood model.
+#The lower confidence bound on exp(b1) suggests that the odds of winning would 
+# decrease slightly with every additional point scored (beta1 = 0.996229662; beta1*xi;).
+# This is obviously unrealistic. Of course, confidence intervals are based on large 
+# sample assumptions and our sample consists of only 20 games.
+
+
+### Conclusion about the LM and GLM:
+#Linear regression minimizes the squared difference between predicted and actual observations,
+# i.e., minimizes the variance of the residual. If an additional predictor significantly reduces
+# the residual's variance, the predictor is deemed important. Deviance extends this idea to
+### generalized linear regression, using (negative) log likelihoods in place of variance.
+
+
+#To see the analysis of deviance for our model
+anova(mdl)
+#The value, 3.5398, labeled as the deviance of ravenScore, is actually the difference between
+# the deviance of our model, which includes a slope, and that of a model which includes only an
+# intercept, b0.
+#The null hypothesis is that
+# the coefficient of ravenScore is zero. To confidently reject this hypothesis, we would want
+# 3.5398 to be larger than the 95th percentile of chi-square distribution with one degree of
+# freedom.
+
+#compute the threshold of this percentile
+qchisq(0.95, 1)
+#3.5398 is close to but less than the 95th percentile threshold, 3.841459, hence
+# would be regarded as consistent with the null hypothesis at the conventional 5% level. In other
+# words, ravenScore adds very little to a model which just guesses that the Ravens win with
+# probability 70% (their actual record that season) or odds 7 to 3 is almost as good.
+
+#it is possible to verify this using 
+mdl0 <- glm(ravenWinNum ~ 1, binomial, ravenData)
+#but this concludes the Binary Outcomes example
+
+###
+
+
+
+
+
+############## General Linear Models - Poisson Models
+
+# Poisson distribution is a useful model for counts and rates
+# - rate = count per unit of time
+# - linear regression with transformation is an alternative
+# count data examples
+# - calls to a call center
+# - number of flu cases in an area
+# - number of cars that cross a bridge
+# rate data examples
+# - percent of children passing a test
+# - percent of hits to a website from a country
+# - radioactive decay
+# Poisson model examples
+# - modeling web traffic hits incidence rates
+# - approximating binomial probabilities with small p and large n
+# - analyzing contingency table data (tabulated counts for categorical variables)
+
+#lambda - rate or expected count per unit time
+#t - monitoring time
+# mean = variance
+
+#the Poisson distributions for various values of lambda:
+# set up 1x3 panel plot
+par(mfrow = c(1, 3))
+# Poisson distribution for t = 1, and lambda = 2
+plot(0 : 10, dpois(0 : 10, lambda = 2), type = "h", frame = FALSE)
+# Poisson distribution for t = 1, and lambda = 10
+plot(0 : 20, dpois(0 : 20, lambda = 10), type = "h", frame = FALSE)
+# Poisson distribution for t = 1, and lambda = 100
+plot(0 : 200, dpois(0 : 200, lambda = 100), type = "h", frame = FALSE)
+#for large values of lambda, the distribution looks like the Gaussian
+
+
+### Examples of regressions - Leek Group Website Traffic
+#https://dl.dropboxusercontent.com/u/7710864/data/gaData.rda
+#for the purpose of the example, the time is always one day, so t = 1, Poisson mean is 
+#interpreted as web hits per day
+#- if t = 24, we would be modeling web hits per hour
+
+# load data
+load("gaData.rda")
+# convert the dates to proper formats
+gaData$julian <- julian(gaData$date)
+# plot visits vs dates
+plot(gaData$julian,gaData$visits,pch=19,col="darkgrey",xlab="Julian",ylab="Visits")
+
+
+### Example 1 - Linear Regression
+#the traffic can be modeled using linear model as follows
+# plot the visits vs dates
+plot(gaData$julian,gaData$visits,pch=19,col="darkgrey",xlab="Julian",ylab="Visits")
+# perform linear regression
+lm1 <- lm(gaData$visits ~ gaData$julian)
+# plot regression line
+abline(lm1,col="red",lwd=3)
+
+#if we are interested in relative increases in web traffic, we can the natural log of the outcome
+round(exp(coef(lm(I(log(gaData$visits + 1)) ~ gaData$julian))), 5)
+#as we can see from above, the daily increase in hits is 0.2%
+
+
+### Example 2 - Poisson Regression
+# plot visits vs dates
+plot(gaData$julian,gaData$visits,pch=19,col="darkgrey",xlab="Julian",ylab="Visits")
+# construct Poisson regression model
+glm1 <- glm(gaData$visits ~ gaData$julian,family="poisson")
+# plot linear regression line in red
+abline(lm1,col="red",lwd=3)
+# plot Poisson regression line in
+lines(gaData$julian,glm1$fitted,col="blue",lwd=3)
+
+
+### Example 3 - Robust Standard Errors with Poisson Regression
+# variance of the Poisson distribution is defined to be the mean of the distribution, 
+#so we would expect the variance to increase with higher values of X
+# below is the residuals vs fitted value plot for the Poisson regression model
+
+# plot residuals vs fitted values
+plot(glm1$fitted,glm1$residuals,pch=19,col="grey",ylab="Residuals",xlab="Fitted")
+
+#   as we can see from above, the residuals don't appear to be increasing with higher fitted values
+#   even if the mean model is correct in principle, there could always be a certain degree of model
+# mis-specification
+#   to account for mis-specifications for the model, we can use
+# 1. glm(outcome~predictor, family = "quasi-poisson") = introduces an additional multiplicative
+# factor  to denominator of model so that the variance ?? rather than just ?? (see Variances
+# and Quasi-Likelihoods)
+# 2. more generally, robust standard errors (effectively constructing wider confidence intervals) can be
+# used
+#   model agnostic standard errors, implemented through the sandwich package, is one way to calculate
+# the robust standard errors
+# - algorithm assumes the mean relationship is specified correctly and attempts to get a general
+# estimates the variance that isn't highly dependent on the model
+# - it uses assumption of large sample sizes and asymptotics to estimate the confidence intervals that
+# is robust to model mis-specification
+# - Note: more information can be found at http:// stackoverflow.com/questions/ 3817182/
+#   vcovhc-and-confidence-interval
+
+# load sandwich package
+library(sandwich)
+# compute
+confint.agnostic <- function (object, parm, level = 0.95, ...)
+{
+  cf <- coef(object); pnames <- names(cf)
+  if (missing(parm))
+    parm <- pnames
+  else if (is.numeric(parm))
+    parm <- pnames[parm]
+  a <- (1 - level)/2; a <- c(a, 1 - a)
+  pct <- stats:::format.perc(a, 3)
+  fac <- qnorm(a)
+  ci <- array(NA, dim = c(length(parm), 2L), dimnames = list(parm,
+                                                             pct))
+  ses <- sqrt(diag(sandwich::vcovHC(object)))[parm]
+  ci[] <- cf[parm] + ses %o% fac
+  ci
+}#regular confidence interval from Poisson Model
+confint(glm1)
+
+# model agnostic standard errors
+confint.agnostic(glm1)
+#as we can see from above, the robust standard error produced slightly wider confidence intervals
+
+
+### Example - Rates
+#if we were to model the percentage of total web hits that are coming from the Simply Statistics blog,
+#we could construct the following model
+
+# perform Poisson regression with offset for number of visits
+glm2 <- glm(gaData$simplystats ~ julian(gaData$date),offset=log(visits+1),
+            family="poisson",data=gaData)
+# plot the fitted means (from simply statistics)
+plot(julian(gaData$date),glm2$fitted,col="blue",pch=19,xlab="Date",ylab="Fitted Counts")
+# plot the fitted means (total visit)
+points(julian(gaData$date),glm1$fitted,col="red",pch=19)
+
+# plot the rates for simply stats
+plot(julian(gaData$date),gaData$simplystats/(gaData$visits+1),col="grey",xlab="Date",
+     ylab="Fitted Rates",pch=19)
+# plot the fitted rates for simply stats (visit/day)
+lines(julian(gaData$date),glm2$fitted/(gaData$visits+1),col="blue",lwd=3)
+
+##############
